@@ -1,4 +1,4 @@
-// src/layouts/DashboardLayout.js
+// src/layouts/DashboardLayout.jsx
 
 import React, { useState, useEffect } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
@@ -31,29 +31,25 @@ const drawerWidth = 240;
 
 export default function DashboardLayout() {
   const navigate = useNavigate();
-  // Un seul état pour toutes les notifications
   const [notifications, setNotifications] = useState({
     users: 0,
     trucks: 0,
     support: 0,
   });
 
-  // --- CORRIGÉ ---
-  // Listener pour les messages non lus dans la collection unifiée "supportChats"
+  // Listener pour les messages de support non lus
   useEffect(() => {
     const q = query(
-      collection(db, "supportChats"), // On écoute la bonne collection
+      collection(db, "supportChats"),
       where("unreadByAdmin", "==", true)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      // Met à jour uniquement la notification du support
       setNotifications((prev) => ({ ...prev, support: snapshot.size }));
     });
     return () => unsubscribe();
   }, []);
 
-  // --- AMÉLIORÉ ---
-  // Listener combiné pour les nouveaux food trucks (commandes + réservations)
+  // Listener pour les nouvelles commandes et réservations
   useEffect(() => {
     const ordersQuery = query(
       collection(db, "orders"),
@@ -89,8 +85,7 @@ export default function DashboardLayout() {
     };
   }, []);
 
-  // --- AMÉLIORÉ ---
-  // Listener combiné pour les nouveaux utilisateurs (clients + pros)
+  // Listener pour les nouveaux utilisateurs (clients + pros)
   useEffect(() => {
     const usersQuery = query(
       collection(db, "users"),
@@ -126,27 +121,31 @@ export default function DashboardLayout() {
   }, []);
 
   const handleLogout = async () => {
-    await signOut(auth);
-    navigate("/login");
+    try {
+      await signOut(auth);
+      navigate("/"); // Redirige vers la page de connexion
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion :", error);
+    }
   };
 
   const menuItems = [
     {
       text: "Utilisateurs",
       icon: <PeopleIcon />,
-      path: "/",
+      path: "/dashboard",
       notificationCount: notifications.users,
     },
     {
       text: "Food Trucks",
       icon: <TwoWheelerIcon />,
-      path: "/trucks",
+      path: "/dashboard/trucks",
       notificationCount: notifications.trucks,
     },
     {
       text: "Support",
       icon: <SupportAgentIcon />,
-      path: "/support",
+      path: "/dashboard/support",
       notificationCount: notifications.support,
     },
   ];
