@@ -1,5 +1,3 @@
-// src/App.jsx
-
 import React from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import "./App.css";
@@ -13,12 +11,12 @@ import ChatDashboard from "./screens/ChatDashboard.jsx";
 
 const router = createBrowserRouter([
   {
-    // La page de connexion est maintenant la page par défaut
+    // La page de connexion est maintenant la page par défaut au démarrage
     path: "/",
     element: <LoginScreen />,
   },
   {
-    // Le tableau de bord est accessible via "/dashboard"
+    // Le tableau de bord est maintenant accessible via "/dashboard"
     path: "/dashboard",
     element: <DashboardLayout />,
     children: [
