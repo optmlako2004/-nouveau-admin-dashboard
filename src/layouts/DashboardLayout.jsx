@@ -1,7 +1,7 @@
 // src/layouts/DashboardLayout.jsx
 
 import React, { useState, useEffect } from "react";
-import { useNavigate, Outlet } from "react-router-dom";
+import { useLocation, useNavigate, Outlet } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../firebaseConfig";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
@@ -19,7 +19,11 @@ import {
   CssBaseline,
   Typography,
   Badge,
+  useTheme,
+  useMediaQuery,
+  IconButton,
 } from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
 import PeopleIcon from "@mui/icons-material/People";
 import TwoWheelerIcon from "@mui/icons-material/TwoWheeler";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -31,6 +35,11 @@ const drawerWidth = 240;
 
 export default function DashboardLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [notifications, setNotifications] = useState({
     users: 0,
     trucks: 0,
@@ -120,13 +129,13 @@ export default function DashboardLayout() {
     };
   }, []);
 
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      navigate("/"); // Redirige vers la page de connexion
-    } catch (error) {
-      console.error("Erreur lors de la déconnexion :", error);
-    }
+    await signOut(auth);
+    navigate("/");
   };
 
   const menuItems = [
@@ -150,6 +159,61 @@ export default function DashboardLayout() {
     },
   ];
 
+  const drawerContent = (
+    <div>
+      <Toolbar>
+        <img src={logo} alt="Logo" style={{ height: 40, marginRight: 10 }} />
+        <Typography variant="h6" color="primary">
+          FoodTrucks
+        </Typography>
+      </Toolbar>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          height: "calc(100vh - 64px)",
+        }}
+      >
+        <List>
+          {menuItems.map((item) => (
+            <ListItem
+              key={item.text}
+              disablePadding
+              onClick={() => {
+                navigate(item.path);
+                if (isMobile) setMobileOpen(false);
+              }}
+            >
+              <ListItemButton selected={location.pathname === item.path}>
+                <ListItemIcon sx={{ color: "primary.main" }}>
+                  <Badge
+                    color="error"
+                    variant="dot"
+                    invisible={item.notificationCount === 0}
+                  >
+                    {item.icon}
+                  </Badge>
+                </ListItemIcon>
+                <ListItemText primary={item.text} />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+        <List>
+          <ListItem disablePadding onClick={handleLogout}>
+            <ListItemButton>
+              <ListItemIcon>
+                <LogoutIcon />
+              </ListItemIcon>
+              <ListItemText primary="Déconnexion" />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Box>
+    </div>
+  );
+
   return (
     <Box sx={{ display: "flex" }}>
       <CssBaseline />
@@ -158,74 +222,68 @@ export default function DashboardLayout() {
         sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
       >
         <Toolbar>
+          {isMobile && (
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
           <Typography variant="h6" noWrap component="div">
             Tableau de Bord Admin
           </Typography>
         </Toolbar>
       </AppBar>
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          [`& .MuiDrawer-paper`]: {
-            width: drawerWidth,
-            boxSizing: "border-box",
-            backgroundColor: "background.paper",
-          },
-        }}
+
+      <Box
+        component="nav"
+        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
       >
-        <Toolbar>
-          <img src={logo} alt="Logo" style={{ height: 40, marginRight: 10 }} />
-          <Typography variant="h6" color="primary">
-            FoodTrucks
-          </Typography>
-        </Toolbar>
-        <Box
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true,
+          }}
           sx={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            height: "100%",
+            display: { xs: "block", md: "none" },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: drawerWidth,
+            },
           }}
         >
-          <List>
-            {menuItems.map((item) => (
-              <ListItem
-                key={item.text}
-                disablePadding
-                onClick={() => navigate(item.path)}
-              >
-                <ListItemButton>
-                  <ListItemIcon sx={{ color: "primary.main" }}>
-                    <Badge
-                      color="error"
-                      variant="dot"
-                      invisible={item.notificationCount === 0}
-                    >
-                      {item.icon}
-                    </Badge>
-                  </ListItemIcon>
-                  <ListItemText primary={item.text} />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-          <List>
-            <ListItem disablePadding onClick={handleLogout}>
-              <ListItemButton>
-                <ListItemIcon>
-                  <LogoutIcon />
-                </ListItemIcon>
-                <ListItemText primary="Déconnexion" />
-              </ListItemButton>
-            </ListItem>
-          </List>
-        </Box>
-      </Drawer>
+          {drawerContent}
+        </Drawer>
+
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: "none", md: "block" },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: drawerWidth,
+            },
+          }}
+          open
+        >
+          {drawerContent}
+        </Drawer>
+      </Box>
+
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: 3, backgroundColor: "background.default" }}
+        sx={{
+          flexGrow: 1,
+          p: { xs: 2, sm: 3 }, // Moins de padding sur les petits écrans
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          backgroundColor: "background.default",
+        }}
       >
         <Toolbar />
         <Outlet />

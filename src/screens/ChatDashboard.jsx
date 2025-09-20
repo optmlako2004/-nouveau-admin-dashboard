@@ -1,4 +1,4 @@
-// src/screens/ChatDashboard.js
+// src/screens/ChatDashboard.jsx
 
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -10,7 +10,7 @@ import {
   addDoc,
   serverTimestamp,
   setDoc,
-  updateDoc, // On importe updateDoc
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import {
@@ -29,16 +29,16 @@ import {
   Badge,
   Avatar,
   ListItemAvatar,
-  Button, // On importe le composant Button
+  Button,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
-// --- CORRECTED IMPORTS ---
 import SendIcon from "@mui/icons-material/Send";
 import PersonIcon from "@mui/icons-material/Person";
 import TwoWheelerIcon from "@mui/icons-material/TwoWheeler";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-// --- END CORRECTION ---
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
-// Le composant pour la liste des chats reste utile
 const ChatList = ({ chats, selectedChat, onSelectChat }) => (
   <List sx={{ p: 0, height: "100%", overflowY: "auto" }}>
     {chats.map((chat) => (
@@ -46,7 +46,6 @@ const ChatList = ({ chats, selectedChat, onSelectChat }) => (
         <ListItemButton
           onClick={() => onSelectChat(chat)}
           selected={selectedChat?.id === chat.id}
-          // On grise la conversation si elle est fermée
           sx={{ opacity: chat.status === "closed" ? 0.6 : 1 }}
         >
           <ListItemAvatar>
@@ -73,12 +72,7 @@ const ChatList = ({ chats, selectedChat, onSelectChat }) => (
               </Typography>
             }
             secondary={
-              <Typography
-                noWrap
-                variant="body2"
-                color="text.secondary"
-                sx={{ fontWeight: chat.unreadByAdmin ? "bold" : "normal" }}
-              >
+              <Typography noWrap variant="body2" color="text.secondary">
                 {chat.lastMessage || "..."}
               </Typography>
             }
@@ -99,7 +93,9 @@ export default function ChatDashboard() {
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
 
-  // Écoute la collection unifiée "supportChats"
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
   useEffect(() => {
     const q = query(
       collection(db, "supportChats"),
@@ -116,7 +112,6 @@ export default function ChatDashboard() {
     return () => unsubscribe();
   }, []);
 
-  // Charge les messages de la conversation sélectionnée
   useEffect(() => {
     if (!selectedChat) return;
 
@@ -132,13 +127,10 @@ export default function ChatDashboard() {
     return () => unsubscribe();
   }, [selectedChat]);
 
-  // Fait défiler jusqu'au dernier message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // --- CORRIGÉ ---
-  // L'envoi de message ré-ouvre la conversation si elle était fermée
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat) return;
@@ -158,37 +150,20 @@ export default function ChatDashboard() {
         lastMessage: newMessage,
         lastMessageTimestamp: serverTimestamp(),
         unreadByUser: true,
-        unreadByPro: true, // On met les deux à true pour être sûr
+        unreadByPro: true,
         unreadByAdmin: false,
-        status: "open", // <-- CORRECTION CLÉ : On force la ré-ouverture
+        status: "open",
       },
       { merge: true }
     );
     setNewMessage("");
   };
 
-  // --- NOUVEAU ---
-  // Fonction pour permettre à l'admin de terminer la conversation
   const handleTerminateChat = async () => {
     if (!selectedChat) return;
-
-    if (
-      window.confirm(
-        "Voulez-vous vraiment terminer cette conversation ? Le professionnel ne verra plus la bannière."
-      )
-    ) {
-      const chatDocRef = doc(db, "supportChats", selectedChat.id);
-      try {
-        await updateDoc(chatDocRef, {
-          status: "closed",
-        });
-        // Optionnel : Mettre à jour l'état local pour un retour visuel immédiat
-        setSelectedChat({ ...selectedChat, status: "closed" });
-      } catch (error) {
-        console.error("Erreur lors de la fermeture du chat:", error);
-        alert("Impossible de terminer la conversation.");
-      }
-    }
+    const chatDocRef = doc(db, "supportChats", selectedChat.id);
+    await updateDoc(chatDocRef, { status: "closed" });
+    setSelectedChat({ ...selectedChat, status: "closed" });
   };
 
   if (loading) {
@@ -206,176 +181,196 @@ export default function ChatDashboard() {
     );
   }
 
+  const showChatList = !isMobile || (isMobile && !selectedChat);
+  const showChatWindow = !isMobile || (isMobile && selectedChat);
+
   return (
     <Grid
       container
       component={Paper}
-      sx={{ width: "100%", height: "calc(100vh - 90px)" }}
+      sx={{ width: "100%", height: "calc(100vh - 120px)" }}
     >
-      {/* Colonne de la liste des conversations */}
-      <Grid
-        item
-        xs={4}
-        sx={{
-          borderRight: "1px solid #ddd",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-          <Typography variant="h6">Conversations</Typography>
-        </Box>
-        <ChatList
-          chats={chats}
-          selectedChat={selectedChat}
-          onSelectChat={setSelectedChat}
-        />
-      </Grid>
+      {showChatList && (
+        <Grid
+          item
+          xs={12}
+          md={4}
+          sx={{
+            borderRight: { md: "1px solid #ddd" },
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
+          }}
+        >
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Typography variant="h6">Conversations</Typography>
+          </Box>
+          <ChatList
+            chats={chats}
+            selectedChat={selectedChat}
+            onSelectChat={setSelectedChat}
+          />
+        </Grid>
+      )}
 
-      {/* Colonne de la conversation active */}
-      <Grid item xs={8} sx={{ display: "flex", flexDirection: "column" }}>
-        {selectedChat ? (
-          <>
-            {/* --- MODIFIÉ : Ajout du bouton Terminer --- */}
-            <Box
-              sx={{
-                p: 2,
-                borderBottom: "1px solid #ddd",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <Typography variant="h6">
-                  {selectedChat.proName || selectedChat.userName}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {selectedChat.userEmail}
-                </Typography>
-              </div>
-              {selectedChat.status !== "closed" && (
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  size="small"
-                  startIcon={<CheckCircleIcon />}
-                  onClick={handleTerminateChat}
-                >
-                  Terminer
-                </Button>
-              )}
-            </Box>
-            <Box
-              sx={{
-                flexGrow: 1,
-                overflowY: "auto",
-                p: 2,
-                backgroundColor: "#f9f9f9",
-              }}
-            >
-              {messages.map((msg) => (
-                <Box
-                  key={msg.id}
-                  sx={{
-                    display: "flex",
-                    justifyContent:
-                      msg.senderId === "admin" ? "flex-end" : "flex-start",
-                    mb: 2,
-                  }}
-                >
-                  <Paper
-                    elevation={1}
+      {showChatWindow && (
+        <Grid
+          item
+          xs={12}
+          md={8}
+          sx={{ display: "flex", flexDirection: "column", height: "100%" }}
+        >
+          {selectedChat ? (
+            <>
+              <Box
+                sx={{
+                  p: 2,
+                  borderBottom: "1px solid #ddd",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  {isMobile && (
+                    <IconButton
+                      onClick={() => setSelectedChat(null)}
+                      sx={{ mr: 1 }}
+                    >
+                      <ArrowBackIcon />
+                    </IconButton>
+                  )}
+                  <div>
+                    <Typography variant="h6">
+                      {selectedChat.proName || selectedChat.userName}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {selectedChat.userEmail}
+                    </Typography>
+                  </div>
+                </Box>
+                {selectedChat.status !== "closed" && (
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    size="small"
+                    startIcon={<CheckCircleIcon />}
+                    onClick={handleTerminateChat}
+                  >
+                    Terminer
+                  </Button>
+                )}
+              </Box>
+              <Box
+                sx={{
+                  flexGrow: 1,
+                  overflowY: "auto",
+                  p: 2,
+                  backgroundColor: "#f9f9f9",
+                }}
+              >
+                {messages.map((msg) => (
+                  <Box
+                    key={msg.id}
                     sx={{
-                      p: 1.5,
-                      borderRadius:
-                        msg.senderId === "admin"
-                          ? "20px 20px 5px 20px"
-                          : "20px 20px 20px 5px",
-                      backgroundColor:
-                        msg.senderId === "admin" ? "primary.main" : "white",
-                      color: msg.senderId === "admin" ? "white" : "black",
-                      maxWidth: "70%",
+                      display: "flex",
+                      justifyContent:
+                        msg.senderId === "admin" ? "flex-end" : "flex-start",
+                      mb: 2,
                     }}
                   >
-                    <Typography variant="body1">{msg.text}</Typography>
-                    <Typography
-                      variant="caption"
+                    <Paper
+                      elevation={1}
                       sx={{
-                        display: "block",
-                        textAlign: "right",
-                        color:
+                        p: 1.5,
+                        borderRadius:
                           msg.senderId === "admin"
-                            ? "rgba(255,255,255,0.7)"
-                            : "#aaa",
-                        mt: 0.5,
+                            ? "20px 20px 5px 20px"
+                            : "20px 20px 20px 5px",
+                        backgroundColor:
+                          msg.senderId === "admin" ? "primary.main" : "white",
+                        color: msg.senderId === "admin" ? "white" : "black",
+                        maxWidth: "70%",
                       }}
                     >
-                      {msg.createdAt
-                        ? new Date(
-                            msg.createdAt.seconds * 1000
-                          ).toLocaleTimeString("fr-FR", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : ""}
-                    </Typography>
-                  </Paper>
-                </Box>
-              ))}
-              <div ref={messagesEndRef} />
-            </Box>
-            {/* On désactive le champ de réponse si la conversation est fermée */}
+                      <Typography variant="body1">{msg.text}</Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: "block",
+                          textAlign: "right",
+                          color:
+                            msg.senderId === "admin"
+                              ? "rgba(255,255,255,0.7)"
+                              : "#aaa",
+                          mt: 0.5,
+                        }}
+                      >
+                        {msg.createdAt
+                          ? new Date(
+                              msg.createdAt.seconds * 1000
+                            ).toLocaleTimeString("fr-FR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : ""}
+                      </Typography>
+                    </Paper>
+                  </Box>
+                ))}
+                <div ref={messagesEndRef} />
+              </Box>
+              <Box
+                component="form"
+                onSubmit={handleSendMessage}
+                sx={{
+                  p: 1,
+                  display: "flex",
+                  borderTop: "1px solid #ddd",
+                  backgroundColor: "#fff",
+                }}
+              >
+                <TextField
+                  fullWidth
+                  variant="outlined"
+                  placeholder={
+                    selectedChat.status === "closed"
+                      ? "Cette conversation est terminée."
+                      : "Répondre..."
+                  }
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  size="small"
+                  autoComplete="off"
+                  disabled={selectedChat.status === "closed"}
+                />
+                <IconButton
+                  type="submit"
+                  color="primary"
+                  disabled={
+                    !newMessage.trim() || selectedChat.status === "closed"
+                  }
+                >
+                  <SendIcon />
+                </IconButton>
+              </Box>
+            </>
+          ) : (
             <Box
-              component="form"
-              onSubmit={handleSendMessage}
               sx={{
-                p: 1,
                 display: "flex",
-                borderTop: "1px solid #ddd",
-                backgroundColor: "#fff",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "100%",
               }}
             >
-              <TextField
-                fullWidth
-                variant="outlined"
-                placeholder={
-                  selectedChat.status === "closed"
-                    ? "Cette conversation est terminée."
-                    : "Répondre..."
-                }
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                size="small"
-                autoComplete="off"
-                disabled={selectedChat.status === "closed"}
-              />
-              <IconButton
-                type="submit"
-                color="primary"
-                disabled={
-                  !newMessage.trim() || selectedChat.status === "closed"
-                }
-              >
-                <SendIcon />
-              </IconButton>
+              <Typography variant="h6" color="text.secondary">
+                Sélectionnez une conversation pour commencer
+              </Typography>
             </Box>
-          </>
-        ) : (
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              height: "100%",
-            }}
-          >
-            <Typography variant="h6" color="text.secondary">
-              Sélectionnez une conversation pour commencer
-            </Typography>
-          </Box>
-        )}
-      </Grid>
+          )}
+        </Grid>
+      )}
     </Grid>
   );
 }

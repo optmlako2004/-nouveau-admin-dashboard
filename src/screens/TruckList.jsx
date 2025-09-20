@@ -1,4 +1,4 @@
-// src/screens/TruckList.js
+// src/screens/TruckList.jsx
 
 import React, { useState, useEffect } from "react";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
@@ -20,6 +20,12 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  useTheme,
+  useMediaQuery,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 
@@ -27,27 +33,29 @@ export default function TruckList() {
   const [trucks, setTrucks] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedTruck, setSelectedTruck] = useState(null);
 
-  const fetchTrucks = async () => {
-    setLoading(true);
-    try {
-      const driversSnapshot = await getDocs(collection(db, "drivers"));
-      const trucksData = driversSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setTrucks(trucksData);
-    } catch (error) {
-      console.error("Erreur lors de la récupération des food trucks:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchTrucks = async () => {
+      setLoading(true);
+      try {
+        const driversSnapshot = await getDocs(collection(db, "drivers"));
+        const trucksData = driversSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setTrucks(trucksData);
+      } catch (error) {
+        console.error("Erreur lors de la récupération des food trucks:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchTrucks();
   }, []);
 
@@ -83,7 +91,7 @@ export default function TruckList() {
 
   const viewTruckDetails = () => {
     if (selectedTruck) {
-      navigate(`/trucks/${selectedTruck.id}`);
+      navigate(`/dashboard/trucks/${selectedTruck.id}`);
     }
     handleMenuClose();
   };
@@ -96,18 +104,90 @@ export default function TruckList() {
     );
   }
 
+  const menuActions = (
+    <Menu
+      anchorEl={anchorEl}
+      open={Boolean(anchorEl)}
+      onClose={handleMenuClose}
+    >
+      <MenuItem onClick={viewTruckDetails}>Voir les détails</MenuItem>
+      <MenuItem onClick={handleToggleStatus}>
+        {selectedTruck?.disabled ? "Activer le compte" : "Désactiver le compte"}
+      </MenuItem>
+    </Menu>
+  );
+
+  // Vue Mobile
+  if (isMobile) {
+    return (
+      <Paper>
+        <Typography variant="h4" sx={{ p: 2, pb: 1 }}>
+          Gestion des Food Trucks
+        </Typography>
+        <List sx={{ p: 0 }}>
+          {trucks.map((truck) => (
+            <React.Fragment key={truck.id}>
+              <ListItem
+                secondaryAction={
+                  <IconButton
+                    edge="end"
+                    onClick={(e) => handleMenuClick(e, truck)}
+                  >
+                    <MoreVertIcon />
+                  </IconButton>
+                }
+              >
+                <ListItemText
+                  primary={
+                    <Typography
+                      variant="body1"
+                      sx={{ fontWeight: "bold", mr: 4 }}
+                      noWrap
+                    >
+                      {truck.nomFoodtruck || "Non défini"}
+                    </Typography>
+                  }
+                  secondary={
+                    <>
+                      <Typography
+                        component="span"
+                        variant="body2"
+                        color="text.primary"
+                      >
+                        Spécialité: {truck.specialite || "Non définie"}
+                      </Typography>
+                      <Box sx={{ mt: 1 }}>
+                        <Chip
+                          label={truck.disabled ? "Désactivé" : "Actif"}
+                          color={truck.disabled ? "error" : "success"}
+                          size="small"
+                        />
+                      </Box>
+                    </>
+                  }
+                />
+              </ListItem>
+              <Divider component="li" />
+            </React.Fragment>
+          ))}
+        </List>
+        {menuActions}
+      </Paper>
+    );
+  }
+
+  // Vue Desktop
   return (
     <Paper sx={{ width: "100%", overflow: "hidden" }}>
       <Typography variant="h4" sx={{ p: 2 }}>
         Gestion des Food Trucks
       </Typography>
-      <TableContainer sx={{ maxHeight: "calc(100vh - 128px)" }}>
+      <TableContainer sx={{ maxHeight: "calc(100vh - 220px)" }}>
         <Table stickyHeader>
           <TableHead>
             <TableRow>
               <TableCell>Nom du Food Truck</TableCell>
               <TableCell>Email</TableCell>
-              {/* NOUVEAU : Ajout de la colonne Spécialité */}
               <TableCell>Spécialité</TableCell>
               <TableCell>Statut</TableCell>
               <TableCell align="right">Actions</TableCell>
@@ -118,7 +198,6 @@ export default function TruckList() {
               <TableRow hover key={truck.id}>
                 <TableCell>{truck.nomFoodtruck || "Non défini"}</TableCell>
                 <TableCell>{truck.email}</TableCell>
-                {/* NOUVEAU : Affichage de la spécialité */}
                 <TableCell>{truck.specialite || "Non définie"}</TableCell>
                 <TableCell>
                   <Chip
@@ -137,19 +216,7 @@ export default function TruckList() {
           </TableBody>
         </Table>
       </TableContainer>
-
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={viewTruckDetails}>Voir les détails</MenuItem>
-        <MenuItem onClick={handleToggleStatus}>
-          {selectedTruck?.disabled
-            ? "Activer le compte"
-            : "Désactiver le compte"}
-        </MenuItem>
-      </Menu>
+      {menuActions}
     </Paper>
   );
 }

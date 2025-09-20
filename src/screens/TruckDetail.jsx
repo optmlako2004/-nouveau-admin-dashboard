@@ -1,4 +1,5 @@
-// src/screens/TruckDetail.js
+// src/screens/TruckDetail.jsx
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -32,16 +33,20 @@ import {
   Button,
   Modal,
   TextField,
+  useTheme,
+  useMediaQuery,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from "@mui/material";
-// --- CORRECTED IMPORT ---
 import SendIcon from "@mui/icons-material/Send";
-// --- END CORRECTION ---
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
   return (
     <div role="tabpanel" hidden={value !== index} {...other}>
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && <Box sx={{ p: { xs: 1, sm: 3 } }}>{children}</Box>}
     </div>
   );
 }
@@ -63,7 +68,7 @@ const modalStyle = {
   top: "50%",
   left: "50%",
   transform: "translate(-50%, -50%)",
-  width: 400,
+  width: { xs: "90%", sm: 400 },
   bgcolor: "background.paper",
   borderRadius: 2,
   boxShadow: 24,
@@ -79,12 +84,16 @@ export default function TruckDetail() {
   const [loading, setLoading] = useState(true);
   const [tabIndex, setTabIndex] = useState(0);
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const [openContactModal, setOpenContactModal] = useState(false);
   const [contactMessage, setContactMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     const fetchTruckData = async () => {
+      // ... (votre logique de fetch reste identique)
       try {
         const truckDocRef = doc(db, "drivers", truckId);
         const truckDoc = await getDoc(truckDocRef);
@@ -123,9 +132,8 @@ export default function TruckDetail() {
     fetchTruckData();
   }, [truckId]);
 
-  // --- CORRIGÉ ---
-  // L'envoi de message ré-ouvre la conversation si elle était fermée
   const handleSendMessageToPro = async () => {
+    // ... (votre logique d'envoi de message reste identique)
     if (!contactMessage.trim() || !truck) return;
     setIsSending(true);
 
@@ -145,20 +153,20 @@ export default function TruckDetail() {
           lastMessage: contactMessage,
           lastMessageTimestamp: serverTimestamp(),
           unreadByUser: true,
-          unreadByPro: true, // On met les deux à true pour être sûr
+          unreadByPro: true,
           proId: truck.id,
           proName: truck.nomFoodtruck,
           userEmail: truck.email,
           type: "Pro",
           unreadByAdmin: false,
-          status: "open", // <-- CORRECTION CLÉ : On force la ré-ouverture
+          status: "open",
         },
         { merge: true }
       );
 
       setOpenContactModal(false);
       setContactMessage("");
-      navigate("/support"); // Redirige vers la page de support
+      navigate("/dashboard/support");
     } catch (error) {
       console.error("Erreur d'envoi du message:", error);
     } finally {
@@ -187,14 +195,20 @@ export default function TruckDetail() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            flexDirection: { xs: "column", sm: "row" },
           }}
         >
-          <div>
+          <Box
+            sx={{
+              mb: { xs: 2, sm: 0 },
+              textAlign: { xs: "center", sm: "left" },
+            }}
+          >
             <Typography variant="h4">{truck.nomFoodtruck}</Typography>
             <Typography variant="subtitle1" color="text.secondary">
               {truck.email}
             </Typography>
-          </div>
+          </Box>
           <Button variant="contained" onClick={() => setOpenContactModal(true)}>
             Contacter le Pro
           </Button>
@@ -203,6 +217,7 @@ export default function TruckDetail() {
           <Tabs
             value={tabIndex}
             onChange={(e, newValue) => setTabIndex(newValue)}
+            variant={isMobile ? "fullWidth" : "standard"}
           >
             <Tab label={`Commandes (${orders.length})`} />
             <Tab label={`Réservations (${reservations.length})`} />
@@ -210,63 +225,118 @@ export default function TruckDetail() {
         </Box>
 
         <TabPanel value={tabIndex} index={0}>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Client</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Total</TableCell>
-                  <TableCell>Statut</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>{order.userName}</TableCell>
-                    <TableCell>
-                      {new Date(
+          {isMobile ? (
+            <List sx={{ p: 0 }}>
+              {orders.map((order) => (
+                <React.Fragment key={order.id}>
+                  <ListItem>
+                    <ListItemText
+                      primary={`${order.userName} - ${order.totalPrice.toFixed(
+                        2
+                      )} €`}
+                      secondary={`Date: ${new Date(
                         order.createdAt?.seconds * 1000
-                      ).toLocaleDateString("fr-FR")}
-                    </TableCell>
-                    <TableCell>{order.totalPrice.toFixed(2)} €</TableCell>
-                    <TableCell>{order.status}</TableCell>
+                      ).toLocaleDateString("fr-FR")} - Statut: ${order.status}`}
+                    />
+                  </ListItem>
+                  <Divider component="li" />
+                </React.Fragment>
+              ))}
+            </List>
+          ) : (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Client</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Total</TableCell>
+                    <TableCell>Statut</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {orders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>{order.userName}</TableCell>
+                      <TableCell>
+                        {new Date(
+                          order.createdAt?.seconds * 1000
+                        ).toLocaleDateString("fr-FR")}
+                      </TableCell>
+                      <TableCell>{order.totalPrice.toFixed(2)} €</TableCell>
+                      <TableCell>{order.status}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </TabPanel>
 
         <TabPanel value={tabIndex} index={1}>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Client</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Date de l'événement</TableCell>
-                  <TableCell>Statut</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {reservations.map((res) => (
-                  <TableRow key={res.id}>
-                    <TableCell>{res.userName}</TableCell>
-                    <TableCell>{res.userEmail}</TableCell>
-                    <TableCell>
-                      {new Date(
-                        res.eventDate?.seconds * 1000
-                      ).toLocaleDateString("fr-FR")}
-                    </TableCell>
-                    <TableCell>
-                      {getReservationStatusChip(res.status)}
-                    </TableCell>
+          {isMobile ? (
+            <List sx={{ p: 0 }}>
+              {reservations.map((res) => (
+                <React.Fragment key={res.id}>
+                  <ListItem>
+                    <ListItemText
+                      primary={res.userName}
+                      secondary={
+                        <Box
+                          component="span"
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          <Typography
+                            component="span"
+                            variant="body2"
+                          >{`Événement: ${new Date(
+                            res.eventDate?.seconds * 1000
+                          ).toLocaleDateString("fr-FR")}`}</Typography>
+                          <Box component="span" sx={{ mt: 0.5 }}>
+                            {getReservationStatusChip(res.status)}
+                          </Box>
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                  <Divider component="li" />
+                </React.Fragment>
+              ))}
+            </List>
+          ) : (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Client</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Date de l'événement</TableCell>
+                    <TableCell>Statut</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {reservations.map((res) => (
+                    <TableRow key={res.id}>
+                      <TableCell>{res.userName}</TableCell>
+                      <TableCell>{res.userEmail}</TableCell>
+                      <TableCell>
+                        {new Date(
+                          res.eventDate?.seconds * 1000
+                        ).toLocaleDateString("fr-FR")}
+                      </TableCell>
+                      <TableCell>
+                        {getReservationStatusChip(res.status)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </TabPanel>
       </Paper>
 
