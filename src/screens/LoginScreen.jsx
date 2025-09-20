@@ -37,7 +37,8 @@ export default function LoginScreen() {
       const idTokenResult = await user.getIdTokenResult(true);
 
       if (idTokenResult.claims.admin === true) {
-        navigate("/");
+        // Redirige vers le tableau de bord après une connexion réussie
+        navigate("/dashboard");
       } else {
         await auth.signOut();
         setError("Accès refusé. Vous n'êtes pas un administrateur.");
